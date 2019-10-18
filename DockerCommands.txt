@@ -1,0 +1,160 @@
+DOCKER
+
+Tutorials:
+--> -----------------------------------------------------------
+https://ropenscilabs.github.io/r-docker-tutorial/
+https://ropenscilabs.github.io/r-docker-tutorial/01-what-and-why.html
+https://ropenscilabs.github.io/r-docker-tutorial/02-Launching-Docker.html
+https://www.r-bloggers.com/running-your-r-script-in-docker/
+https://docs.docker.com/get-started/
+http://www.derekmpowell.com/posts/2018/02/docker-tutorial-1/
+http://www.derekmpowell.com/posts/2018/02/docker-tutorial-2/
+http://www.derekmpowell.com/posts/2018/02/docker-tutorial-3/
+--> -----------------------------------------------------------
+
+
+# Pull docker with r-base
+docker pull rocker/r-base
+
+# Start rocker
+docker run -it --rm rocker/r-base
+
+# Start rstudio
+docker run --rm -p 127.0.0.1:8787:8787 -e DISABLE_AUTH=true rocker/rstudio
+
+# Start rstudio and shiny
+docker run -d -p 3838:3838 -p 8787:8787 -e ADD=shiny -e PASSWORD=yourpasswordhere rocker/rstudio
+docker run -d -p 3838:3838 -p 8787:8787 -e ADD=shiny -e DISABLE_AUTH=true rocker/rstudio
+
+# Start rstudio using a local directory
+docker run --rm -p 8787:8787 -e DISABLE_AUTH=true -v /Users/tiffanytimbers/Documents/DC/r-docker-tutorial:/home/rstudio/r-docker-tutorial rocker/verse
+docker run --rm -p 8787:8787 -e DISABLE_AUTH=true -v /home/sgelias/dockers/classeq:/home/rstudio/classeq rocker/tidyverse
+
+# Run my image
+docker run --rm -p 8787:8787 -e DISABLE_AUTH=true -v /home/sgelias/dockers/classeq:/home/rstudio/classeq rstudio_classeq
+
+# Build classeq (my image)
+docker build . -t classeq
+
+# List all active images
+docker ps
+
+# Commit image
+docker commit -m "rocker rstudio + classeq" <container-id> classeq
+
+# Load classeq image
+docker run --rm -p 8787:8787 -e DISABLE_AUTH=true -v /home/sgelias/dockers/classeq:/home/rstudio/classeq classeq
+
+# Load classeq and connect to localhost
+docker run --net=host --rm -p 8787:8787 -e DISABLE_AUTH=true -v /home/sgelias/dockers/classeq:/home/rstudio/classeq classeq
+
+# Installing Dependencies external to the R system
+docker ps # find the ID of the running container you want to add a package to
+docker exec -it <container-id> bash # a docker command to start a bash shell in your container
+apt-get install libgsl0-dev # install the package, in this case GSL
+
+# Using docker and packrat
+https://www.joelnitta.com/post/docker-and-packrat/
+
+# Run bash to install and manage applications docker
+docker run -it <image-tag> bash
+docker run -it rocker/r-base bash
+
+OR
+
+docker run -it --rm rocker/r-base bash
+
+
+
+##### TUTORIAL - HOW TO CREATE AN DOCKER TOGETHER VIRTUALENV WITH DJANGO #####
+# https://www.youtube.com/watch?v=90LCcim-wHQ
+# https://www.the-lazy-dev.com/en/dockerize-django-2-app-docker-compose-part-1/
+
+# Create a project directory and an vietualenv inside it
+mkdir bdms-project
+cd bdms-project
+virtualenv --python=python3.6 venv
+
+# Activate virtualenv
+source venv/bin/activate
+
+# In terminal create a docker compose file inside it
+touch ./docker-compose.yml
+
+# Create a Docker file give example of 
+# https://www.youtube.com/watch?v=90LCcim-wHQ
+
+# Open a new terminal inside the main project folder "/home/sgelias/web-projects/bdms-project" and get
+
+# build
+docker-compose up --build
+
+# start server
+docker-compose up
+
+# Allow edition as no sudo
+sudo chown -R $USER:$USER bdms
+
+# Start a bash in the current directory
+docker-compose exec web bash
+OR
+docker exec -t -i 6d2a0d32b8ff bash
+
+## Installing a postgresql and pgadmin image
+# https://medium.com/@renato.groffe/postgresql-docker-executando-uma-inst%C3%A2ncia-e-o-pgadmin-4-a-partir-de-containers-ad783e85b1a4
+
+# Create a network to link postgres and pgadmin
+docker network create --driver bridge postgres-network
+
+# List all networks
+docker network ls
+
+# Create an container to execute postgres
+docker run --name postgres-bdms --network=postgres-network -e "POSTGRES_PASSWORD=21Sge90xz*" -p 5432:5432 -v /home/sgelias/web-projects/bdms-project/postgres:/var/lib/postgresql/data -d postgres
+
+# run
+docker run --network=postgres-network -e "POSTGRES_PASSWORD=21Sge90xz*" -p 5432:5432 -v /home/sgelias/web-projects/bdms-project/postgres:/var/lib/postgresql/data -d postgres
+
+# Create an container to execute pgadmin
+docker run --name pgadmin-bdms --network=postgres-network -p 15432:80 -e "PGADMIN_DEFAULT_EMAIL=sgelias@outlook.com" -e "PGADMIN_DEFAULT_PASSWORD=21Sge90xz*" -d dpage/pgadmin4
+
+docker run --network=postgres-network -p 15432:80 -e "PGADMIN_DEFAULT_EMAIL=sgelias@outlook.com" -e "PGADMIN_DEFAULT_PASSWORD=21Sge90xz*" -d dpage/pgadmin4
+
+# use docker-compose com postgres and pgadmin
+https://medium.com/@renato.groffe/postgresql-pgadmin-4-docker-compose-montando-rapidamente-um-ambiente-para-uso-55a2ab230b89
+
+## Create and up mysql docker
+https://imasters.com.br/data/utilizando-docker-com-mysql
+https://share.atelie.software/subindo-um-banco-de-dados-mysql-e-phpmyadmin-com-docker-642be41f7638
+https://www.techrepublic.com/article/how-to-deploy-and-use-a-mysql-docker-container/
+
+# run mysql docker
+docker run -e MYSQL_ROOT_PASSWORD=senha-mysql -d mysql/mysql-server
+
+## How to docker-py
+https://docker-py.readthedocs.io/en/stable/
+
+# stop and remove all containers
+docker stop $(docker ps -a -q)
+docker rm $(docker ps -a -q)
+
+
+
+
+################################
+# Last commit
+docker commit -m "rocker rstudio packrat + classeq" 94089cdabee4 classeq3_rproj:latest
+sha256:c69148647f891e98aa96d8f64318ed34b7c013a8115330a8a5e2cd2c68813250
+
+docker commit -m "rocker rstudio packrat + classeq" d78aa2c7cb51 classeq3_rproj:9ago2019
+
+
+# load Genbank flat files in R
+https://rdrr.io/github/gschofl/biofiles/man/gbRecord.html
+
+# Error to load_taxonomy
+Can't connect to local MySQL server through socket '/var/run/mysqld/mysqld.sock' (2) at biopython-sql/load_ncbi_taxonomy.pl line 329.
+
+# Start mysql on docker
+mysql -u root -p
+

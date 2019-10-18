@@ -1,0 +1,15 @@
+version: "3"
+
+services:
+  biopython-tutorial-sgelias:
+    container_name: biopython-tutorial-sgelias_container
+    image: biopython/biopython-tutorial
+    volumes:
+      - ./biopython-tutorial:/scratch/biopython-notebook/notebooks/localdata:rw
+    ports:
+      - 9805:9803
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 6000M
