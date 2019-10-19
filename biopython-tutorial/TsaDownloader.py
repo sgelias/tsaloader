@@ -8,11 +8,11 @@ import urllib
 import urllib.request  as urllib2
 from urllib.error import HTTPError
 
+
 class TsaDownloader:
     
     def __init__(self, **kwargs):
         self.tsaTable = kwargs.get('tsaTable', None)
-        self.folder = kwargs.get('folder', './')
     
     
     def getResponseCode(self, **kwargs):
@@ -39,9 +39,9 @@ class TsaDownloader:
             for line in lines:
                 
                 # identify start information
-                startMatch = re.search(r'\[\s([\w-]+\s[\w\:]+),[0-9]+\s-\sINFO\s\] - Start work', line)
+                startMatch = re.search(r'\[\s([\w-]+\s[\w\:]+),[0-9]+\s-\sINFO\s\] - Work started!$', line)
                 if startMatch:
-                    self.works[i]['datetime'] = startMatch.group(1)
+                    self.works[i]['startedIn'] = startMatch.group(1)
                     
                     for line in lines:
                         recordmatch = re.search(r'\sINFO\s\] - Downloading:\s([\w]+)\s', line) #\(size:\s(.+)\)
@@ -67,7 +67,8 @@ class TsaDownloader:
     
     def tsaTableParser(self, **kwargs):
         self.verbose = kwargs.get('verbose', False)
-        self.ran = kwargs.get('ran', None)
+        self.ran = kwargs.get('ran', None) # temporary not used
+        self.folder = kwargs.get('folder', './')
         
         df = pd.read_csv(self.tsaTable)
         
@@ -91,13 +92,16 @@ class TsaDownloader:
         
         # start log
         logger.info(
-            "Start work\n"\
+            "Work started!\n"\
             "\n>>>>>>>>>>>>>>>>>>> ------------------------------------ <<<<<<<<<<<<<<<<<<<<<"\
             "\n>>>>>>>>>>>>>>>>>>> --- TSA-TABLE-PARSER-INITIALIZED --- <<<<<<<<<<<<<<<<<<<<<"\
             "\n>>>>>>>>>>>>>>>>>>> ------------------------------------ <<<<<<<<<<<<<<<<<<<<<\n"\
         )
         
-        for tsa_code in df['prefix_s']:
+        # log stats
+        logger.info("Records to be downloaded: %s", len(df))
+        
+        for x, tsa_code in enumerate(df['prefix_s']):
             
             prefix_match = re.search(r'(^[A-Z]{2})([A-Z]{2})[0-9]+', tsa_code)
             
@@ -122,12 +126,15 @@ class TsaDownloader:
                 
                 # log tsa_code and start time
                 start = time.clock()
-                logger.info('Downloading: %s (size: %.2fM)', tsa_code, int(objSize) / 1e+6)
+                logger.info(
+                    'Downloading record %s: %s (size: %.2fM)', 
+                    x + 1, tsa_code, int(objSize) / 1e+6
+                )
                 
-                #urllib.request.urlretrieve(base_url, save_url)
+                urllib.request.urlretrieve(base_url, save_url)
                 #req.retrieve(base_url, save_url)
                 
-                logger.info('Download finished (elapsed time: %.3fS)', time.clock() - start)
+                logger.info('Download %s finished (elapsed time: %.3f)', tsa_code, time.clock() - start)
                 
                 if self.verbose:
                     print(tsa_code + ' saved in ' + save_url)
@@ -136,4 +143,5 @@ class TsaDownloader:
                 print(tsa_code + 'not found')
                 next
         
-        logger.info('Work finished!')
+        logger.info('Work finished!\n')
+
