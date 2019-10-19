@@ -1,0 +1,3 @@
+prefix_s,project_s,src_db_s,targeted_locus_name_s,div_s,organism_an,bioproject_s,biosample_ss,infra_name_ss,other_src_ss,contigs_total_length_l,contigs_count_l,contigs_proteins_count_l,contigs_annotated_s,scaffolds_count_l,scaffolds_proteins_count_l,scaffolds_total_length_l,scaffolds_annotated_s,scaffolds_range_ss,chromosome_range_ss,update_date_dt,create_date_dt
+GAVZ01,TSA,GenBank,,PLN,Tripterygium wilfordii,PRJNA218574,SAMN02351604,,,47349970,67839,0,No,0,0,0,No,,,2014-03-18T00:00:00Z,2014-03-18T00:00:00Z
+GAWA01,TSA,GenBank,,PLN,Prunus armeniaca,PRJNA237575,"SAMN02630625,SAMN02630626,SAMN02630627",,,78537253,98283,0,No,0,0,0,No,,,2014-03-06T00:00:00Z,2014-03-06T00:00:00Z
