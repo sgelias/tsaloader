@@ -1,25 +1,73 @@
+import sys
+import re
+import time
+import threading
+import logging
+import pandas as pd
+import urllib
+import urllib.request  as urllib2
+from urllib.error import HTTPError
+
 class TsaDownloader:
     
     def __init__(self, **kwargs):
         self.tsaTable = kwargs.get('tsaTable', None)
-        
+        self.folder = kwargs.get('folder', './')
+    
     
     def getResponseCode(self, **kwargs):
         self.url = kwargs.get('url', None)
+        
         try:
             conn = urllib.request.urlopen(self.url)
             return conn.getcode()
+        
         except HTTPError as e:
             return e.code
     
     
-    # CRIAR UMA FUNÇÃO PARA RECONHECER O ÚLTIMO REGISTRO BAIXADO AQUI
+    def logInspector(self, **kwargs):
+        self.logPath = kwargs.get('logPath', './logfile.log')
+        
+        with open(self.logPath, 'r') as lg:
+            lines = lg.read().splitlines()
+            
+            i = 0
+            records = []
+            self.works = {i: {'datetime': None,'records': None}}
+            
+            for line in lines:
+                
+                # identify start information
+                startMatch = re.search(r'\[\s([\w-]+\s[\w\:]+),[0-9]+\s-\sINFO\s\] - Start work', line)
+                if startMatch:
+                    self.works[i]['datetime'] = startMatch.group(1)
+                    
+                    for line in lines:
+                        recordmatch = re.search(r'\sINFO\s\] - Downloading:\s([\w]+)\s', line) #\(size:\s(.+)\)
+                        
+                        if recordmatch:
+                            records.append(recordmatch.group(1))
+                            
+                    self.works[i]['records'] = records
+                    i += 1
+                    
+        return self.works
+    
+    
+    # INCLUDE A LOG FILE TO CONTROL ALSO DOWNLOADED FILES AND OTHER'S
+    def downloadInspector(self):
+        df = pd.read_csv(self.tsaTable)
+        
+        log = self.logInspector()
+        
+        for k, v in log.items():
+            print(k, v['records'])
     
     
     def tsaTableParser(self, **kwargs):
         self.verbose = kwargs.get('verbose', False)
         self.ran = kwargs.get('ran', None)
-        self.folder = kwargs.get('folder', './')
         
         df = pd.read_csv(self.tsaTable)
         
@@ -74,7 +122,7 @@ class TsaDownloader:
                 
                 # log tsa_code and start time
                 start = time.clock()
-                logger.info('Downloading: %s (size: %.1fM)', tsa_code, int(objSize) / 1e+6)
+                logger.info('Downloading: %s (size: %.2fM)', tsa_code, int(objSize) / 1e+6)
                 
                 #urllib.request.urlretrieve(base_url, save_url)
                 #req.retrieve(base_url, save_url)
@@ -89,11 +137,3 @@ class TsaDownloader:
                 next
         
         logger.info('Work finished!')
-        #logger.removeHandler(file_handler)
-        #del logger, file_handler
-        
-        
-        # INCLUDE A LOG FILE TO CONTROL ALSO DOWNLOADED FILES AND OTHER'S
-        
-        #return df
-
