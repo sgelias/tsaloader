@@ -1,14 +1,3 @@
-import sys
-import re
-import time
-import threading
-import logging
-import pandas as pd
-import urllib
-import urllib.request  as urllib2
-from urllib.error import HTTPError
-
-
 class TsaDownloader:
     
     def __init__(self, **kwargs):
@@ -24,35 +13,6 @@ class TsaDownloader:
         
         except HTTPError as e:
             return e.code
-    
-    
-    def logInspector(self, **kwargs):
-        self.logPath = kwargs.get('logPath', './logfile.log')
-        
-        with open(self.logPath, 'r') as lg:
-            lines = lg.read().splitlines()
-            
-            i = 0
-            records = []
-            self.works = {i: {'datetime': None,'records': None}}
-            
-            for line in lines:
-                
-                # identify start information
-                startMatch = re.search(r'\[\s([\w-]+\s[\w\:]+),[0-9]+\s-\sINFO\s\] - Work started!$', line)
-                if startMatch:
-                    self.works[i]['startedIn'] = startMatch.group(1)
-                    
-                    for line in lines:
-                        recordmatch = re.search(r'\sINFO\s\] - Downloading:\s([\w]+)\s', line) #\(size:\s(.+)\)
-                        
-                        if recordmatch:
-                            records.append(recordmatch.group(1))
-                            
-                    self.works[i]['records'] = records
-                    i += 1
-                    
-        return self.works
     
     
     # INCLUDE A LOG FILE TO CONTROL ALSO DOWNLOADED FILES AND OTHER'S
@@ -71,14 +31,15 @@ class TsaDownloader:
         self.folder = kwargs.get('folder', './')
         
         df = pd.read_csv(self.tsaTable)
+        objSizeStats = []
         
         # Gets or creates a logger
         logger = logging.getLogger('__name__')
         
         if not logger.handlers:
             # define file handler and set formatter
-            file_handler = logging.FileHandler('logfile.log')
-            formatter    = logging.Formatter('[ %(asctime)s - %(levelname)s ] - %(message)s')
+            file_handler = logging.FileHandler('logfile.log', mode = 'w')
+            formatter    = logging.Formatter('[ %(asctime)s - %(levelname)s ] %(message)s')
             file_handler.setFormatter(formatter)
 
             # set log level
@@ -92,14 +53,14 @@ class TsaDownloader:
         
         # start log
         logger.info(
-            "Work started!\n"\
-            "\n>>>>>>>>>>>>>>>>>>> ------------------------------------ <<<<<<<<<<<<<<<<<<<<<"\
-            "\n>>>>>>>>>>>>>>>>>>> --- TSA-TABLE-PARSER-INITIALIZED --- <<<<<<<<<<<<<<<<<<<<<"\
-            "\n>>>>>>>>>>>>>>>>>>> ------------------------------------ <<<<<<<<<<<<<<<<<<<<<\n"\
+            "WORK STARTED!\n"\
+            "\n>>>>>>>>>>>>>>>>>>> ------------------------------------ <<<<<<<<<<<<<<<<<<<"\
+            "\n>>>>>>>>>>>>>>>>>>> --- TSA-TABLE-PARSER-INITIALIZED --- <<<<<<<<<<<<<<<<<<<"\
+            "\n>>>>>>>>>>>>>>>>>>> ------------------------------------ <<<<<<<<<<<<<<<<<<<\n"\
         )
         
         # log stats
-        logger.info("Records to be downloaded: %s", len(df))
+        logger.info("Records to be downloaded: %s\n", len(df))
         
         for x, tsa_code in enumerate(df['prefix_s']):
             
@@ -114,15 +75,19 @@ class TsaDownloader:
                 print(base_url)
             
             code = self.getResponseCode(url=base_url)
+            print(code)
             
             if code == 200:
                 
                 # make location to save file
                 save_url = '{}/{}.1.fsa_nt.gz'.format(self.folder, tsa_code)
                 
-                # retrieve object size
+                # retrieve object info
                 req = urllib.request.urlopen(base_url)
                 objSize = req.info()['Content-Length']
+                
+                # populate objSize for stats
+                objSizeStats.append(int(objSize))
                 
                 # log tsa_code and start time
                 start = time.clock()
@@ -131,10 +96,21 @@ class TsaDownloader:
                     x + 1, tsa_code, int(objSize) / 1e+6
                 )
                 
-                urllib.request.urlretrieve(base_url, save_url)
-                #req.retrieve(base_url, save_url)
+                # download file
+                #urllib.request.urlretrieve(base_url, save_url)
                 
-                logger.info('Download %s finished (elapsed time: %.3f)', tsa_code, time.clock() - start)
+                logger.info(
+                    '-- finished (elapsed time: %.3f)', 
+                    time.clock() - start
+                )
+                
+                logger.info(
+                    "-- stats (Mb): TOTAL %.3f - MIN %.4f - MEDIAN %.4f - MAX %.4f\n",
+                    sum(objSizeStats) / 1e+6, 
+                    min(objSizeStats) / 1e+6, 
+                    statistics.median(objSizeStats) / 1e+6, 
+                    max(objSizeStats) / 1e+6
+                )
                 
                 if self.verbose:
                     print(tsa_code + ' saved in ' + save_url)
@@ -143,5 +119,80 @@ class TsaDownloader:
                 print(tsa_code + 'not found')
                 next
         
-        logger.info('Work finished!\n')
-
+        logger.info('WORK FINISHED!\n')
+    
+    
+    def logInspector(self, **kwargs):
+        self.logPath = kwargs.get('logPath', './logfile.log')
+        
+        with open(self.logPath, 'r') as lg:
+            lines = lg.readlines()
+            lastLine = lines[-1]
+        
+        with open(self.logPath, 'r') as lg:
+            
+            print(lastLine)
+            
+            i = 0
+            records = []
+            self.out = {}
+            
+            for x, line in enumerate(lg):
+                
+                # initializa works
+                work = []
+                #work = {'startedIn': None,'records': []}
+                
+                # match for start
+                startMatch = re.search(
+                    r'^\[\s([\w-]+\s[\w\:]+),[0-9]+\s-\sINFO\s\] WORK STARTED!$', line
+                )
+                if startMatch:
+                    
+                    # define 'startedIn'
+                    startedIn = startMatch.group(1)
+                    
+                    # initialize previous line
+                    previousLine = False
+                    for y, line in enumerate(lg):
+                        
+                        # match for record
+                        recordMatch = re.search(
+                            r"^\[\s[\w-]+\s[\w\:]+,[0-9]+\s-\sINFO\s\]"\
+                            "\sDownloading record\s[0-9]+:\s([\w]+)\s(\(.+\))$", line
+                        )
+                        recordFinishMatch = re.search(
+                            r"^\[\s[\w-]+\s[\w\:]+,[0-9]+\s-\sINFO\s\]"\
+                            "\s-- finished\s\(.+\)$", line
+                        )
+                        #if recordMatch:
+                        #    print(1)
+                        #    previousLine = recordMatch.group(1)
+                        #    next
+                        
+                        if recordMatch:
+                            work.append((startedIn, recordMatch.group(1),'unfinished'))
+                            self.out[i] = work
+                            previousLine = True
+                            print(work)
+                            break
+                        
+                        if recordFinishMatch and previousLine:
+                            work[-1] = (startedIn, recordMatch.group(1),'finished')
+                            self.out[i] = work
+                            print(work)
+                            
+                            previousLine = False
+                            next
+                        
+                        # match for finish
+                        workFinishMatch = re.search(
+                            r'^\[\s([\w-]+\s[\w\:]+),[0-9]+\s-\sINFO\s\] WORK FINISHED!$', line
+                        )
+                        if workFinishMatch:
+                            self.out[i] = work
+                            i += 1
+                            break
+                    
+        return self.out
+    
